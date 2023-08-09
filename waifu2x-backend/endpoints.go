@@ -10,23 +10,23 @@ type Endpoint struct {
 func (fh *functionHelper) Endpoints() []Endpoint {
 	return []Endpoint{
 		{
-			Pattern: "/upload",
+			Pattern: "api/v1/upload",
 			Handler: fh.FileProcessor,
 		},
 		{
-			Pattern: "/update-status",
+			Pattern: "api/v1/update-status",
 			Handler: fh.UpdateStatus,
 		},
 		{
-			Pattern: "/get-images",
+			Pattern: "api/v1/get-images",
 			Handler: fh.GetImages,
 		},
 		{
-			Pattern: "/download-image",
+			Pattern: "api/v1/download-image",
 			Handler: fh.DownloadImage,
 		},
 		{
-			Pattern: "/ws",
+			Pattern: "api/v1/ws",
 			Handler: fh.HandleWebSocket,
 		},
 	}

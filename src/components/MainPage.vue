@@ -1,7 +1,7 @@
 <script setup>
 import { reactive, ref, onMounted } from "vue";
 
-const socket = new WebSocket('ws://localhost:8080/ws');
+const socket = new WebSocket('ws://scalar.hiyo.run/api/v1/ws');
 
 const file = ref(null);
 const upscaled = ref(null);
@@ -39,7 +39,7 @@ onMounted(
 
 async function downloadImage(filename) {
   console.log("Downloading",filename)
-  const image = await fetch("http://localhost:8080/download-image?" + new URLSearchParams({
+  const image = await fetch("https://scalar.hiyo.run/api/v1/download-image?" + new URLSearchParams({
     filename: filename
   }))
   const imageBlog = await image.blob()
@@ -54,7 +54,7 @@ async function downloadImage(filename) {
 }
 
 async function getImages() {
-  const response = await fetch("http://localhost:8080/get-images?" + new URLSearchParams({
+  const response = await fetch("https://scalar.hiyo.run/api/v1/get-images?" + new URLSearchParams({
     uuid: session.uuid
   }))
   const jsonData = await response.json();
@@ -99,7 +99,7 @@ function submitUpscale() {
   form.append("scale", model.scale);
   form.append("noise", model.noise);
   form.append("uuid", session.uuid)
-  fetch("http://localhost:8080/upload", {
+  fetch("https://scalar.hiyo.run/api/v1/upload", {
     method: "POST",
     body: form,
   })
