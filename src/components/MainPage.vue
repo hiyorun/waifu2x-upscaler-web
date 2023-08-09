@@ -24,7 +24,6 @@ onMounted(
     if (session.uuid) {
       sIDExist.value = true
     }
-    console.log(session.uuid)
     socket.onopen = (event) => {
       console.log('WebSocket connection opened', event);
     };
@@ -215,6 +214,7 @@ function download() {
 
 .table td {
   padding: 0.5em;
+  text-align: center;
 }
 
 table>thead {

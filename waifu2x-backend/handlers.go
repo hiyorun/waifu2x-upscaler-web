@@ -137,7 +137,7 @@ func (fh *functionHelper) FileProcessor(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	id, err := fh.beanstalk.Put((taskJson), 1, time.Second*3, time.Second*0)
+	id, err := fh.beanstalk.Put((taskJson), 1, time.Second*3, time.Minute*60)
 	if err != nil {
 		fmt.Println("Error enqueueing task:", err)
 	} else {

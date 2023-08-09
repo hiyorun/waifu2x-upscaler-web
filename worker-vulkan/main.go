@@ -50,6 +50,8 @@ func main() {
 		sharedFolder:  *sharedFolder,
 	}
 
+	log.Println("Ready to take jobs")
+
 	go wh.worker(conn)
 
 	// Wait indefinitely
@@ -100,7 +102,7 @@ func (wh *workerHelper) sendStatus(uuid uuid.UUID, filename string, status strin
 		panic(err)
 	}
 
-	response, err := http.Post(fmt.Sprint(wh.backendAddr, "/update-status"), "application/json", bytes.NewBuffer(payload))
+	response, err := http.Post(fmt.Sprint(wh.backendAddr, "/api/v1/update-status"), "application/json", bytes.NewBuffer(payload))
 	if err != nil {
 		panic(err)
 	}

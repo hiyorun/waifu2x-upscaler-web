@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net/http"
 	"os"
 	"os/exec"
 	"time"
@@ -24,12 +25,14 @@ type workerMessage struct {
 }
 
 type workerHelper struct {
-	beanstalkAddr *string
-	sharedFolder  *string
+	beanstalkAddr string
+	backendAddr   string
+	sharedFolder  string
 }
 
 func main() {
 	beanstalkAddr := flag.String("beanstalk", "127.0.0.1:11300", "The beanstalk server address")
+	backendAddr := flag.String("backend", "http://127.0.0.1:8080", "The backend server address")
 	sharedFolder := flag.String("sharedFolder", "./", "Shared folder location")
 
 	flag.Parse()
@@ -42,9 +45,12 @@ func main() {
 	defer conn.Close()
 
 	wh := &workerHelper{
-		beanstalkAddr: beanstalkAddr,
-		sharedFolder:  sharedFolder,
+		beanstalkAddr: *beanstalkAddr,
+		backendAddr:   *backendAddr,
+		sharedFolder:  *sharedFolder,
 	}
+
+	log.Println("Ready to take jobs")
 
 	go wh.worker(conn)
 
@@ -67,16 +73,44 @@ func (wh *workerHelper) worker(conn *beanstalk.Conn) {
 		}
 
 		fmt.Printf("Processing %s scale %dx, and noise %d for session %s\n", task.FileName, task.Scale, task.Noise, task.UUID)
-		wh.startUpscale(task.FileName, task.Noise, task.Scale)
+		wh.sendStatus(task.UUID, task.FileName, "processing")
+		err = wh.startUpscale(task.FileName, task.Noise, task.Scale)
+		if err != nil {
+			wh.sendStatus(task.UUID, task.FileName, "failed")
+			continue
+		}
 		log.Println("Done")
+		wh.sendStatus(task.UUID, task.FileName, "done")
+
 		conn.Delete(id)
 	}
 }
 
-func (wh *workerHelper) startUpscale(filename string, noise, scale int) (string, error) {
-	output := fmt.Sprintf("[%d%%][%dx]%s", scale*100, noise, filename)
-	log.Println(output)
-	cmd := exec.Command("waifu2x-ncnn-vulkan", "-i", fmt.Sprint(wh.sharedFolder, "/temp-images/", filename), "-n", fmt.Sprint(noise), "-s", fmt.Sprint(scale), "-o", fmt.Sprint(wh.sharedFolder, "/upscaled-images/", output))
+func (wh *workerHelper) sendStatus(uuid uuid.UUID, filename string, status string) {
+	data := struct {
+		UUID     string `json:"uuid"`
+		FileName string `json:"filename"`
+		Status   string `json:"status"`
+	}{
+		UUID:     uuid.String(),
+		FileName: filename,
+		Status:   status,
+	}
+
+	payload, err := json.Marshal(data)
+	if err != nil {
+		panic(err)
+	}
+
+	response, err := http.Post(fmt.Sprint(wh.backendAddr, "/api/v1/update-status"), "application/json", bytes.NewBuffer(payload))
+	if err != nil {
+		panic(err)
+	}
+	defer response.Body.Close()
+}
+
+func (wh *workerHelper) startUpscale(filename string, noise, scale int) error {
+	cmd := exec.Command("waifu2x-converter-cpp", "-i", fmt.Sprint(wh.sharedFolder, "/temp-images/", filename), "--noise-level", fmt.Sprint(noise), "--scale-ratio", fmt.Sprint(scale), "-o", fmt.Sprint(wh.sharedFolder, "/upscaled-images/", filename))
 	var stdBuffer bytes.Buffer
 	mw := io.MultiWriter(os.Stdout, &stdBuffer)
 
@@ -85,7 +119,7 @@ func (wh *workerHelper) startUpscale(filename string, noise, scale int) (string,
 
 	if err := cmd.Run(); err != nil {
 		log.Println(err)
-		return "", err
+		return err
 	}
-	return output, nil
+	return nil
 }
