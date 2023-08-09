@@ -11,13 +11,7 @@ let sIDExist = ref(false)
 let modify = ref(false)
 let loading = ref(false);
 let buttonLabel = ref("Upload a file");
-let images = reactive([
-  {
-    uuid: "",
-    name: "",
-    status: ""
-  }
-])
+let images = reactive({ entries: [] })
 let model = reactive({
   scale: 1,
   noise: 1,
@@ -34,7 +28,7 @@ onMounted(
     socket.onopen = (event) => {
       console.log('WebSocket connection opened', event);
     };
-
+    getImages()
     socket.onmessage = (event) => {
       if (event.data === session.uuid) {
         getImages();
@@ -43,21 +37,28 @@ onMounted(
   }
 )
 
+async function downloadImage(filename) {
+  console.log("Downloading",filename)
+  const image = await fetch("http://localhost:8080/download-image?" + new URLSearchParams({
+    filename: filename
+  }))
+  const imageBlog = await image.blob()
+  const imageURL = URL.createObjectURL(imageBlog)
+
+  const link = document.createElement('a')
+  link.href = imageURL
+  link.download = filename
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+}
+
 async function getImages() {
   const response = await fetch("http://localhost:8080/get-images?" + new URLSearchParams({
     uuid: session.uuid
   }))
   const jsonData = await response.json();
-  for (let image in jsonData) {
-    images.push(
-      {
-        uuid: image.uuid,
-        name: image.name,
-        status: image.status
-      }
-    )
-  }
-  console.log(images)
+  images.entries = jsonData
 }
 
 function generateID() {
@@ -175,13 +176,55 @@ function download() {
         </div>
       </button>
     </div>
-    <div v-for="image in images" :key="image.uuid">
-      <span>{{ image.name }}</span>
-      <span>{{ image.status }}</span>
-    </div>
+    <span class="group">Your Images</span>
+    <table class="group table">
+      <thead>
+        <tr>
+          <td>Name</td>
+          <td>Status</td>
+          <td colspan="2" width="30%">Action</td>
+        </tr>
+      </thead>
+      <tbody>
+        <tr v-for="entry in images.entries" :key="entry.uuid">
+          <td>{{ entry.name }}</td>
+          <td>{{ entry.status }}</td>
+          <td>
+            <button class="button" @click="downloadImage(entry.filename)">
+              <span class="material-symbols-outlined">
+                download
+              </span>
+            </button>
+          </td>
+          <td>
+            <button class="button" @click="downloadImage(entry.filename)">
+              <span class="material-symbols-outlined">
+                delete
+              </span>
+            </button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
   </div>
 </template>
 <style scoped>
+.table {
+  width: 70%;
+}
+
+.table td {
+  padding: 0.5em;
+}
+
+table>thead {
+  background-color: #ff9ead;
+}
+
+.table>tbody>tr:nth-child(even) {
+  background-color: #ff9ead;
+}
+
 .dialogbackground {
   position: absolute;
   top: 0;

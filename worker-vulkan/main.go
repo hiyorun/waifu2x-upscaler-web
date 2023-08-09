@@ -108,9 +108,7 @@ func (wh *workerHelper) sendStatus(uuid uuid.UUID, filename string, status strin
 }
 
 func (wh *workerHelper) startUpscale(filename string, noise, scale int) error {
-	output := fmt.Sprintf("[%d%%][%dx]%s", scale*100, noise, filename)
-	log.Println(output)
-	cmd := exec.Command("waifu2x-ncnn-vulkan", "-i", fmt.Sprint(wh.sharedFolder, "/temp-images/", filename), "-n", fmt.Sprint(noise), "-s", fmt.Sprint(scale), "-o", fmt.Sprint(wh.sharedFolder, "/upscaled-images/", output))
+	cmd := exec.Command("waifu2x-ncnn-vulkan", "-i", fmt.Sprint(wh.sharedFolder, "/temp-images/", filename), "-n", fmt.Sprint(noise), "-s", fmt.Sprint(scale), "-o", fmt.Sprint(wh.sharedFolder, "/upscaled-images/", filename))
 	var stdBuffer bytes.Buffer
 	mw := io.MultiWriter(os.Stdout, &stdBuffer)
 

@@ -22,6 +22,10 @@ func (fh *functionHelper) Endpoints() []Endpoint {
 			Handler: fh.GetImages,
 		},
 		{
+			Pattern: "/download-image",
+			Handler: fh.DownloadImage,
+		},
+		{
 			Pattern: "/ws",
 			Handler: fh.HandleWebSocket,
 		},

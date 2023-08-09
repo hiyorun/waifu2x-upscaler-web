@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"time"
 
@@ -22,9 +23,10 @@ type workerMessage struct {
 }
 
 type processedImage struct {
-	UUID   uuid.UUID `json:"uuid"`
-	Status string    `json:"status"`
-	Name   string    `json:"name"`
+	UUID     uuid.UUID `json:"uuid"`
+	Status   string    `json:"status"`
+	FileName string    `json:"filename"`
+	Name     string    `json:"name"`
 }
 
 type Data struct {
@@ -143,21 +145,6 @@ func (fh *functionHelper) FileProcessor(w http.ResponseWriter, r *http.Request) 
 	}
 
 	w.WriteHeader(http.StatusOK)
-	// filename, err := startUpscale(fileId, handler.Filename, NoiseFactor, ScaleFactor)
-	// if err != nil {
-	// 	log.Println(err)
-	// 	return
-	// }
-
-	// returnFile, err := os.ReadFile("./upscaled-images/" + filename)
-	// if err != nil {
-	// 	log.Println(err)
-	// 	return
-	// }
-	// w.Header().Set("Connection", "keep-alive")
-	// w.Header().Add("Access-Control-Allow-Origin", "*")
-	// w.Header().Add("Content-Disposition", "attachment; filename="+filename)
-	// w.Write(returnFile)
 }
 
 func (fh *functionHelper) UpdateStatus(w http.ResponseWriter, r *http.Request) {
@@ -187,7 +174,7 @@ func (fh *functionHelper) GetImages(w http.ResponseWriter, r *http.Request) {
 	uuid := r.URL.Query().Get("uuid")
 
 	// Query all projects from the database
-	rows, err := fh.db.Query("SELECT uuid,name,status FROM file_processes WHERE uuid=?", uuid)
+	rows, err := fh.db.Query("SELECT uuid,name,status,filename FROM file_processes WHERE uuid=?", uuid)
 	if err != nil {
 		w.WriteHeader(http.StatusNotFound)
 		log.Println(err)
@@ -198,7 +185,7 @@ func (fh *functionHelper) GetImages(w http.ResponseWriter, r *http.Request) {
 	var projects []processedImage
 	for rows.Next() {
 		var project processedImage
-		err := rows.Scan(&project.UUID, &project.Name, &project.Status)
+		err := rows.Scan(&project.UUID, &project.Name, &project.Status, &project.FileName)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			log.Println(err)
@@ -218,6 +205,42 @@ func (fh *functionHelper) GetImages(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	w.Write(jsonData)
+}
+
+func (fh *functionHelper) DownloadImage(w http.ResponseWriter, r *http.Request) {
+	filename := r.URL.Query().Get("filename")
+
+	searchFilename, err := fh.db.Query("SELECT status FROM file_processes WHERE filename = ? LIMIT 1", filename)
+	if err != nil {
+		log.Println("UUID search", err)
+		return
+	}
+	defer searchFilename.Close()
+
+	var id string
+	for searchFilename.Next() {
+		err = searchFilename.Scan(&id)
+		log.Println(id)
+		if err != nil {
+			log.Println("Scan", err)
+			return
+		}
+		if id != "done" {
+			log.Println("File processing not done yet")
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+	}
+
+	returnFile, err := os.ReadFile(fh.sharedFolder + "/upscaled-images/" + filename)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	w.Header().Set("Connection", "keep-alive")
+	w.Header().Add("Access-Control-Allow-Origin", "*")
+	w.Header().Add("Content-Disposition", "attachment; filename="+filename)
+	w.Write(returnFile)
 }
 
 func (fh *functionHelper) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
