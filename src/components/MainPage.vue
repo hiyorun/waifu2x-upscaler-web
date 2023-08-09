@@ -1,7 +1,7 @@
 <script setup>
 import { reactive, ref, onMounted } from "vue";
 
-const socket = new WebSocket('ws://scalar.hiyo.run/api/v1/ws');
+const socket = new WebSocket('wss://scalar.hiyo.run/api/v1/ws');
 
 const file = ref(null);
 const upscaled = ref(null);
