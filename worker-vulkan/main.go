@@ -76,7 +76,7 @@ func (wh *workerHelper) worker(conn *beanstalk.Conn) {
 func (wh *workerHelper) startUpscale(filename string, noise, scale int) (string, error) {
 	output := fmt.Sprintf("[%d%%][%dx]%s", scale*100, noise, filename)
 	log.Println(output)
-	cmd := exec.Command("waifu2x-ncnn-vulkan", "-i", fmt.Sprint(wh.sharedFolder, "./temp-images/", filename), "-n", fmt.Sprint(noise), "-s", fmt.Sprint(scale), "-o", fmt.Sprint(wh.sharedFolder, "./upscaled-images/", output))
+	cmd := exec.Command("waifu2x-ncnn-vulkan", "-i", fmt.Sprint(wh.sharedFolder, "/temp-images/", filename), "-n", fmt.Sprint(noise), "-s", fmt.Sprint(scale), "-o", fmt.Sprint(wh.sharedFolder, "/upscaled-images/", output))
 	var stdBuffer bytes.Buffer
 	mw := io.MultiWriter(os.Stdout, &stdBuffer)
 

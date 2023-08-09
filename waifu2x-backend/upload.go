@@ -38,7 +38,7 @@ func (fh *functionHelper) uploadFile(r *http.Request) (uuid.UUID, error) {
 	fmt.Printf("MIME Header: %+v\n", handler.Header)
 
 	fileId := uuid.New()
-	filePath, err := filepath.Abs(fmt.Sprintf(fh.sharedFolder, "./temp-images/%s-%s", fileId.String(), handler.Filename))
+	filePath, err := filepath.Abs(fmt.Sprintf("%s/temp-images/%s-%s", fh.sharedFolder, fileId.String(), handler.Filename))
 	if err != nil {
 		fmt.Println("filepath", err)
 		return uuid.Nil, err
