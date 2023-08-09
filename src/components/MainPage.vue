@@ -7,7 +7,6 @@ const upscaled = ref(null);
 let session = reactive({ uuid: "" })
 let sIDExist = ref(false)
 let modify = ref(false)
-let upscaleHappened = ref(false);
 let loading = ref(false);
 let buttonLabel = ref("Upload a file");
 let model = reactive({
@@ -58,32 +57,21 @@ function readFile() {
 }
 
 function submitUpscale() {
-  upscaleHappened.value = false;
   loading.value = true;
   let form = new FormData();
   form.append("imageFile", model.imageFile[0]);
   form.append("scale", model.scale);
   form.append("noise", model.noise);
   form.append("uuid",session.uuid)
-  fetch("http://127.0.0.1:8080/upload", {
+  fetch("http://localhost:8080/upload", {
     method: "POST",
     body: form,
   })
-    .then(async (resp) => {
-      let file = await resp.blob();
-      let reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onloadend = () => {
-        // console.log(reader.result);
-        upscaled.value.src = reader.result;
-      };
-    })
     .catch((err) => {
       console.error(err);
     })
     .finally(() => {
       loading.value = false;
-      upscaleHappened.value = true;
     });
 }
 
@@ -151,12 +139,6 @@ function download() {
           <div></div>
         </div>
       </button>
-    </div>
-    <div v-if="upscaleHappened" class="imgContainer group">
-      <span class="download" @click="download">
-        <span>Click to download</span>
-      </span>
-      <img ref="upscaled" class="upscaled" />
     </div>
   </div>
 </template>
