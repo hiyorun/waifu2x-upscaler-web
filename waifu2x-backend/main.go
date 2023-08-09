@@ -9,6 +9,7 @@ import (
 	"strconv"
 
 	beanstalk "github.com/beanstalkd/go-beanstalk"
+	"github.com/gorilla/websocket"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -27,6 +28,7 @@ type functionHelper struct {
 	db           *sql.DB
 	beanstalk    *beanstalk.Conn
 	sharedFolder string
+	webSocket    *websocket.Conn
 }
 
 func main() {

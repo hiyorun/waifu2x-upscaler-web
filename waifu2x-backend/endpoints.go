@@ -13,5 +13,17 @@ func (fh *functionHelper) Endpoints() []Endpoint {
 			Pattern: "/upload",
 			Handler: fh.FileProcessor,
 		},
+		{
+			Pattern: "/update-status",
+			Handler: fh.UpdateStatus,
+		},
+		{
+			Pattern: "/get-images",
+			Handler: fh.GetImages,
+		},
+		{
+			Pattern: "/ws",
+			Handler: fh.HandleWebSocket,
+		},
 	}
 }

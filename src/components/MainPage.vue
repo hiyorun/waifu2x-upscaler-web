@@ -1,6 +1,8 @@
 <script setup>
 import { reactive, ref, onMounted } from "vue";
 
+const socket = new WebSocket('ws://localhost:8080/ws');
+
 const file = ref(null);
 const upscaled = ref(null);
 
@@ -9,6 +11,13 @@ let sIDExist = ref(false)
 let modify = ref(false)
 let loading = ref(false);
 let buttonLabel = ref("Upload a file");
+let images = reactive([
+  {
+    uuid: "",
+    name: "",
+    status: ""
+  }
+])
 let model = reactive({
   scale: 1,
   noise: 1,
@@ -22,8 +31,34 @@ onMounted(
       sIDExist.value = true
     }
     console.log(session.uuid)
+    socket.onopen = (event) => {
+      console.log('WebSocket connection opened', event);
+    };
+
+    socket.onmessage = (event) => {
+      if (event.data === session.uuid) {
+        getImages();
+      }
+    };
   }
 )
+
+async function getImages() {
+  const response = await fetch("http://localhost:8080/get-images?" + new URLSearchParams({
+    uuid: session.uuid
+  }))
+  const jsonData = await response.json();
+  for (let image in jsonData) {
+    images.push(
+      {
+        uuid: image.uuid,
+        name: image.name,
+        status: image.status
+      }
+    )
+  }
+  console.log(images)
+}
 
 function generateID() {
   session.uuid = crypto.randomUUID()
@@ -62,7 +97,7 @@ function submitUpscale() {
   form.append("imageFile", model.imageFile[0]);
   form.append("scale", model.scale);
   form.append("noise", model.noise);
-  form.append("uuid",session.uuid)
+  form.append("uuid", session.uuid)
   fetch("http://localhost:8080/upload", {
     method: "POST",
     body: form,
@@ -139,6 +174,10 @@ function download() {
           <div></div>
         </div>
       </button>
+    </div>
+    <div v-for="image in images" :key="image.uuid">
+      <span>{{ image.name }}</span>
+      <span>{{ image.status }}</span>
     </div>
   </div>
 </template>
