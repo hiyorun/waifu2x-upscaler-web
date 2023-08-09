@@ -62,7 +62,6 @@ async function getImages() {
 
 function generateID() {
   session.uuid = crypto.randomUUID()
-  console.log(session)
   localStorage.setItem('session_id', session.uuid);
   sIDExist.value = true
   modify.value = false
@@ -73,7 +72,8 @@ function storeSessionID() {
   if (!session.uuid) {
     return
   }
-  localStorage.setItem('session_id', session);
+  localStorage.setItem('session_id', session.uuid);
+  sIDExist.value = true
   modify.value = false
 }
 
