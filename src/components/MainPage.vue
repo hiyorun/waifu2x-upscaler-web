@@ -1,5 +1,5 @@
 <script setup>
-import { reactive, ref, onMounted } from "vue";
+import { reactive, ref, onMounted, onBeforeUnmount } from "vue";
 
 const socket = new WebSocket('wss://scalar.hiyo.run/api/v1/ws');
 
@@ -35,6 +35,10 @@ onMounted(
     };
   }
 )
+
+onBeforeUnmount(() => {
+  socket.close();
+});
 
 async function downloadImage(filename) {
   console.log("Downloading",filename)

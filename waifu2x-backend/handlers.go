@@ -256,8 +256,10 @@ func (fh *functionHelper) HandleWebSocket(w http.ResponseWriter, r *http.Request
 	for {
 		messageType, message, err := fh.webSocket.ReadMessage()
 		if err != nil {
-			fmt.Println("Error reading message:", err)
-			break
+			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway) {
+				log.Printf("Error reading message: %v", err)
+			}
+			return
 		}
 		fmt.Printf("Received message: %s\n", message)
 
