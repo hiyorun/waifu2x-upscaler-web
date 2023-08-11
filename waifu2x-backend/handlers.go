@@ -251,7 +251,6 @@ func (fh *functionHelper) HandleWebSocket(w http.ResponseWriter, r *http.Request
 	}
 
 	fh.webSocket = conn
-	defer fh.webSocket.Close()
 
 	for {
 		messageType, message, err := fh.webSocket.ReadMessage()

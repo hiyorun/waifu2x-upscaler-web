@@ -54,6 +54,8 @@ func main() {
 		http.HandleFunc(endpoint.Pattern, endpoint.Handler)
 	}
 
+	defer fh.webSocket.Close()
+
 	addr := ":" + strconv.Itoa(*port)
 	log.Printf("Server listening on %s", addr)
 	fmt.Println(http.ListenAndServe(addr, nil))
