@@ -1,4 +1,4 @@
-module waifu2x-upscaler-web
+module github.com/hiyorun/waifu2x-upscaler-web
 
 go 1.19
 
