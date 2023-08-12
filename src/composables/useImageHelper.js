@@ -5,7 +5,7 @@ export function useImageHelper() {
     form.append("scale", model.scale);
     form.append("noise", model.noise);
     form.append("uuid", model.uuid);
-    return fetch("http://localhost:8080/api/v1/upload", {
+    return fetch("https://scalar.hiyo.run/api/v1/upload", {
       method: "POST",
       body: form,
     })
@@ -18,7 +18,7 @@ export function useImageHelper() {
     }
     console.log("Downloading", filename);
     const image = await fetch(
-      "http://localhost:8080/api/v1/download-image?" +
+      "https://scalar.hiyo.run/api/v1/download-image?" +
         new URLSearchParams({
           filename: filename,
         })

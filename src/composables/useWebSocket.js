@@ -21,7 +21,7 @@ export function useWebSocket() {
   }
 
   function createWebSocket(callback) {
-    socket.value = new WebSocket("ws://localhost:8080/api/v1/ws");
+    socket.value = new WebSocket("wss://scalar.hiyo.run/api/v1/ws");
     socket.value.addEventListener("open", handleConnection);
     socket.value.addEventListener("close", handleDisconnection);
     socket.value.addEventListener("error", handleError);

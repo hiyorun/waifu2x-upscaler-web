@@ -38,7 +38,7 @@ onBeforeUnmount(() => {
 
 async function getImages() {
   const response = await fetch(
-    "http://localhost:8080/api/v1/get-images?" +
+    "https://scalar.hiyo.run/api/v1/get-images?" +
     new URLSearchParams({
       uuid: sessionStore.getSession,
     })
