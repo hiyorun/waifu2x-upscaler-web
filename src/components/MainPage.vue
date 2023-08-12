@@ -1,243 +1,136 @@
 <script setup>
-import { reactive, ref, onMounted, onBeforeUnmount } from "vue";
-import { useWebSocket } from "@/composables/useWebSocket";
+import { reactive, ref } from "vue";
 import { useImageHelper } from "@/composables/useImageHelper";
+import { useSession } from "@/states/sessionid";
+
 import { useBusy } from '@/states/busy.js';
 
-const { socket, createWebSocket, handleConnection, handleDisconnection, handleError, sendHeartbeat } = useWebSocket();
-const { uploadImage, downloadImage, getImages, } = useImageHelper
+const { uploadImage } = useImageHelper()
+const sessionStore = useSession()
 
 const busy = useBusy()
 const file = ref(null);
-let session = reactive({ uuid: "" })
-let sIDExist = ref(false)
-let modify = ref(false)
-let buttonLabel = ref("Upload a file");
-let images = reactive({ entries: [] })
 let model = reactive({
   scale: 1,
   noise: 1,
   imageFile: null,
+  uuid: ""
 });
-const heartbeatInterval = setInterval(sendHeartbeat, 5000);
-
-onMounted(
-  () => {
-    session.uuid = localStorage.getItem('session_id')
-    if (session.uuid) {
-      sIDExist.value = true
-    }
-
-    createWebSocket()
-
-    socket.value.onmessage = (event) => {
-      console.log(event)
-      if (event.data === session.uuid) {
-        getImages();
-      }
-    };
-  }
-)
-
-onBeforeUnmount(() => {
-  clearInterval(heartbeatInterval);
-  if (socket.value) {
-    socket.value.removeEventListener('open', handleConnection);
-    socket.value.removeEventListener('close', handleDisconnection);
-    socket.value.removeEventListener('error', handleError);
-    socket.value.close();
-  }
-});
-
-function generateUUID() {
-  session.uuid = ""
-  handleUUID()
-}
-
-function handleUUID() {
-  console.log(session.uuid)
-  if (!session.uuid) {
-    session.uuid = crypto.randomUUID()
-  }
-  localStorage.setItem('session_id', session.uuid);
-  sIDExist.value = true
-  modify.value = false
-}
-
-function cancelModify() {
-  modify.value = false
-  session.uuid = localStorage.getItem('session_id')
-}
 
 function readFile() {
   model.imageFile = file.value.files;
-  buttonLabel.value = "Current = " + model.imageFile[0].name;
 }
 
 function upload() {
   busy.setBusy(true)
+  model.uuid = sessionStore.getSession
+  if(model.uuid === ""){
+    console.log("No UUID")
+    return
+  }
   uploadImage(model)
     .catch((err) => {
       console.error(err);
       return err
     })
-    .finally(()=>busy.setBusy(false))
+    .then(() => {
+      model = reactive({
+        scale: 1,
+        noise: 1,
+        imageFile: null,
+        uuid: sessionStore.getSession
+      });
+    })
+    .finally(() => {
+      busy.setBusy(false)
+    })
 }
 </script>
 <template>
-  <div v-if="!sIDExist" class="dialogbackground">
-    <div class="dialog">
-      <span>Input your existing session UUID or create a new one</span>
-      <div>
-        <input type="text" v-model="session.uuid" placeholder="Session ID">
-        <button class="button" @click="handleUUID()">Save</button>
-      </div>
-      <button class="button" @click="generateUUID()">Generate new session UUID</button>
-    </div>
-  </div>
-  <div v-if="modify" class="dialogbackground">
-    <div class="dialog">
-      <span>Modify or regenerate your session UUID</span>
-      <div>
-        <input type="text" v-model="session.uuid" placeholder="Session ID">
-        <button class="button" @click="handleUUID()">Save</button>
-      </div>
-      <button class="button" @click="generateUUID()">Generate new session UUID</button>
-      <button class="button" @click="cancelModify()">Cancel</button>
-    </div>
-  </div>
-  <div class="center">
-    <span>Your session UUID is: "{{ session.uuid }}"</span>
-    <div style="margin: 1em 0;">
-      <button @click="() => { modify = true }" class="button">Configure</button>
-    </div>
-    <input type="file" ref="file" id="upload" @change="readFile()" :disabled="busy.isBusy" />
-    <label :class="!busy.isBusy ? 'button' : 'button-disabled'" for="upload">
-      <span>{{ buttonLabel }}</span>
-    </label>
-    <span class="group">Scale</span>
-    <div>
-      <input type="radio" v-model="model.scale" value="1" :disabled="busy.isBusy" />1
-      <input type="radio" v-model="model.scale" value="2" :disabled="busy.isBusy" />2
-      <input type="radio" v-model="model.scale" value="4" :disabled="busy.isBusy" />4
-      <input type="radio" v-model="model.scale" value="8" :disabled="busy.isBusy" />8
-    </div>
-    <span class="group">Noise Reduction</span>
-    <div>
-      <input type="radio" v-model="model.noise" value="1" :disabled="busy.isBusy" />1
-      <input type="radio" v-model="model.noise" value="2" :disabled="busy.isBusy" />2
-      <input type="radio" v-model="model.noise" value="3" :disabled="busy.isBusy" />3
-    </div>
-    <div class="group">
-      <button style="display: flex; align-items: center; justify-content: center"
-        :class="!busy.isBusy ? 'button' : 'button-disabled'" @click="upload()">
-        <span v-if="busy.isBusy"> Uploading </span>
-        <span v-else>Post</span>
-        <div v-if="busy.isBusy" class="lds-ripple">
-          <div></div>
-          <div></div>
+  <div class="flex min-h-full flex-1 flex-col justify-center px-6 py-12 lg:px-8 ">
+    <form>
+      <div class="space-y-12">
+        <h2 class="text-base font-semibold leading-7 text-arisu-900 dark:text-arisu-100">Image to process</h2>
+        <p class="mt-1 text-sm text-arisu-700 dark:text-arisu-200">Pick an image and select your desired scale and
+          denoising
+          ratio.
+          Image won't be processed until you press upload.</p>
+        <div class="mt-10 grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6">
+          <div class="sm:col-span-4">
+            <label for="imagefile" class="block text-sm font-medium text-arisu-900 dark:text-arisu-100">Select an
+              image</label>
+            <div class="mt-2">
+              <div
+                class="flex rounded-md shadow-sm ring-1 ring-inset ring-arisu-300 focus-within:ring-2 focus-within:ring-inset focus-within:ring-arisu-600 sm:max-w-md">
+                <input type="file" ref="file" name="imagefile" id="imagefile" @change="readFile()"
+                  class="block flex-1 border-0 bg-transparent py-1.5 pl-1 text-arisu-900 dark:text-arisu-100 placeholder:text-arisu-400 focus:ring-0 sm:text-sm sm"
+                  :disabled="busy.isBusy" />
+              </div>
+            </div>
+          </div>
         </div>
-      </button>
-    </div>
-    <span class="group">Your Images</span>
-    <table class="group table">
-      <thead>
-        <tr>
-          <td>Name</td>
-          <td>Status</td>
-          <td colspan="2" width="30%">Action</td>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="entry in images.entries" :key="entry.uuid">
-          <td>{{ entry.name }}</td>
-          <td>{{ entry.status }}</td>
-          <td>
-            <button class="button" @click="downloadImage(entry.filename)">
-              <span class="material-symbols-outlined">
-                download
-              </span>
-            </button>
-          </td>
-          <td>
-            <button class="button" @click="downloadImage(entry.filename)">
-              <span class="material-symbols-outlined">
-                delete
-              </span>
-            </button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+
+        <div class="mt-10 space-y-10">
+          <fieldset>
+            <legend class="text-sm font-semibold text-arisu-900 dark:text-arisu-100">Scale</legend>
+            <p class="mt-1 text-sm text-arisu-700 dark:text-arisu-200">Choose the percentage by which your image will
+              be
+              enlarged.
+            </p>
+            <div class="mt-6 space-y-3">
+              <div class="flex items-center gap-x-3">
+                <input id="1x" value="1" v-model="model.scale" type="radio"
+                  class="h-4 w-4 border-arisu-300 text-arisu-700 dark:text-arisu-200 focus:ring-arisu-600" />
+                <label for="1x" class="block text-sm font-medium text-arisu-900 dark:text-arisu-100">Keep</label>
+              </div>
+              <div class="flex items-center gap-x-3">
+                <input id="2x" value="2" v-model="model.scale" type="radio"
+                  class="h-4 w-4 border-arisu-300 text-arisu-700 dark:text-arisu-200 focus:ring-arisu-600" />
+                <label for="2x" class="block text-sm font-medium text-arisu-900 dark:text-arisu-100">200%</label>
+              </div>
+              <div class="flex items-center gap-x-3">
+                <input id="4x" value="4" v-model="model.scale" type="radio"
+                  class="h-4 w-4 border-arisu-300 text-arisu-700 dark:text-arisu-200 focus:ring-arisu-600" />
+                <label for="4x" class="block text-sm font-medium text-arisu-900 dark:text-arisu-100">400%</label>
+              </div>
+              <div class="flex items-center gap-x-3">
+                <input id="8x" value="8" v-model="model.scale" type="radio"
+                  class="h-4 w-4 border-arisu-300 text-arisu-700 dark:text-arisu-200 focus:ring-arisu-600" />
+                <label for="8x" class="block text-sm font-medium text-arisu-900 dark:text-arisu-100">800%</label>
+              </div>
+            </div>
+          </fieldset>
+          <fieldset>
+            <legend class="text-sm font-semibold text-arisu-900 dark:text-arisu-100">Denoise</legend>
+            <p class="mt-1 text-sm text-arisu-700 dark:text-arisu-200">How strong do you want your image to be
+              denoised.</p>
+            <div class="mt-6 space-y-3">
+              <div class="flex items-center gap-x-3">
+                <input id="noiseweak" value="1" v-model="model.noise" type="radio"
+                  class="h-4 w-4 border-arisu-300 text-arisu-700 dark:text-arisu-200 focus:ring-arisu-600" />
+                <label for="noiseweak" class="block text-sm font-medium text-arisu-900 dark:text-arisu-100">Weak</label>
+              </div>
+              <div class="flex items-center gap-x-3">
+                <input id="noisefutsuu" value="2" v-model="model.noise" type="radio"
+                  class="h-4 w-4 border-arisu-300 text-arisu-700 dark:text-arisu-200 focus:ring-arisu-600" />
+                <label for="noisefutsuu"
+                  class="block text-sm font-medium text-arisu-900 dark:text-arisu-100">Normal</label>
+              </div>
+              <div class="flex items-center gap-x-3">
+                <input id="noisestrong" value="3" v-model="model.noise" type="radio"
+                  class="h-4 w-4 border-arisu-300 text-arisu-700 dark:text-arisu-200 focus:ring-arisu-600" />
+                <label for="noisestrong"
+                  class="block text-sm font-medium text-arisu-900 dark:text-arisu-100">Stronk</label>
+              </div>
+            </div>
+          </fieldset>
+        </div>
+      </div>
+      <div class="mt-6 flex items-center justify-end gap-x-6">
+        <button type="button" @click="upload()"
+          class="rounded-md bg-arisu-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-arisu-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-arisu-600 "
+          :disabled="busy.isBusy">Upload</button>
+      </div>
+    </form>
   </div>
 </template>
-<style scoped>
-.table {
-  width: 70%;
-}
-
-.table td {
-  padding: 0.5em;
-  text-align: center;
-}
-
-table>thead {
-  background-color: #ff9ead;
-}
-
-.table>tbody>tr:nth-child(even) {
-  background-color: #ff9ead;
-}
-
-.dialogbackground {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: #fff8;
-}
-
-.dialog {
-  display: flex;
-  flex-direction: column;
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  background-color: #ffdbde;
-  padding: .5em 2em 2em 2em;
-  transform: translate(-50%, -50%);
-}
-
-.dialog>* {
-  margin-top: 1.5em;
-}
-
-.imgContainer {
-  position: relative;
-  overflow: hidden;
-}
-
-.download {
-  width: 100%;
-  height: 400px;
-  position: absolute;
-  top: 0;
-  left: 0;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  opacity: 0;
-  background-color: #fff7;
-  cursor: pointer;
-}
-
-.download:hover {
-  opacity: 1;
-}
-
-.upscaled {
-  width: auto;
-  height: 400px;
-}
-</style>

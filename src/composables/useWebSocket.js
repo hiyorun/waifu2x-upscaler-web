@@ -20,11 +20,14 @@ export function useWebSocket() {
     handleDisconnection();
   }
 
-  function createWebSocket() {
+  function createWebSocket(callback) {
     socket.value = new WebSocket("ws://localhost:8080/api/v1/ws");
     socket.value.addEventListener("open", handleConnection);
     socket.value.addEventListener("close", handleDisconnection);
     socket.value.addEventListener("error", handleError);
+    if(!callback){
+      return
+    }
   }
 
   function sendHeartbeat() {

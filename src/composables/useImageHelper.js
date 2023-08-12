@@ -4,14 +4,18 @@ export function useImageHelper() {
     form.append("imageFile", model.imageFile[0]);
     form.append("scale", model.scale);
     form.append("noise", model.noise);
-    form.append("uuid", session.uuid);
+    form.append("uuid", model.uuid);
     return fetch("http://localhost:8080/api/v1/upload", {
       method: "POST",
       body: form,
     })
   }
 
-  async function downloadImage(filename) {
+  async function downloadImage(filename,status) {
+    console.log(filename,status)
+    if(status !== "done"){
+      return
+    }
     console.log("Downloading", filename);
     const image = await fetch(
       "http://localhost:8080/api/v1/download-image?" +
@@ -30,19 +34,8 @@ export function useImageHelper() {
     document.body.removeChild(link);
   }
 
-  async function getImages() {
-    const response = await fetch(
-      "http://localhost:8080/api/v1/get-images?" +
-        new URLSearchParams({
-          uuid: session.uuid,
-        })
-    );
-    const jsonData = await response.json();
-    return jsonData;
-  }
   return {
     uploadImage,
     downloadImage,
-    getImages,
   };
 }
