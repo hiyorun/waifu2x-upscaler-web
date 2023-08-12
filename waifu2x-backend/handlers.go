@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/gorilla/websocket"
+	"github.com/hiyorun/waifu2x-upscaler-web/pkg/websocket"
 )
 
 type workerMessage struct {
@@ -33,12 +33,6 @@ type Data struct {
 	UUID     uuid.UUID `json:"uuid"`
 	FileName string    `json:"filename"`
 	Status   string    `json:"status"`
-}
-
-var upgrader = websocket.Upgrader{
-	CheckOrigin: func(r *http.Request) bool {
-		return true
-	},
 }
 
 func (fh *functionHelper) checkUUID(uuid uuid.UUID) {
@@ -244,45 +238,21 @@ func (fh *functionHelper) DownloadImage(w http.ResponseWriter, r *http.Request) 
 }
 
 func (fh *functionHelper) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
-	conn, err := upgrader.Upgrade(w, r, nil)
+	fmt.Println("WebSocket Endpoint Hit")
+	conn, err := websocket.Upgrade(w, r)
 	if err != nil {
-		fmt.Println("Error upgrading connection:", err)
-		return
+		fmt.Fprintf(w, "%+v\n", err)
 	}
 
-	fh.webSocket = append(fh.webSocket, conn)
-
-	for {
-		messageType, message, err := conn.ReadMessage()
-		if err != nil {
-			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway) {
-				log.Printf("Error reading message: %v", err)
-			}
-			break
-		}
-		fmt.Printf("Received message: %s\n", message)
-
-		activeClients := make([]*websocket.Conn, 0, len(fh.webSocket))
-
-		for _, client := range fh.webSocket {
-			if err := client.WriteMessage(messageType, message); err != nil {
-				fmt.Println("Error writing message:", err)
-			} else {
-				activeClients = append(activeClients, client)
-			}
-		}
-
-		fh.webSocket = activeClients
+	client := &websocket.Client{
+		Conn: conn,
+		Pool: fh.wsPool,
 	}
+
+	fh.wsPool.Register <- client
+	client.Read()
 }
 
 func (fh *functionHelper) triggerUpdate(uuid uuid.UUID) {
-	// Send a message to the connected WebSocket client
-	log.Println("Sending message", uuid)
-	for _, client := range fh.webSocket {
-		err := client.WriteMessage(websocket.TextMessage, []byte(uuid.String()))
-		if err != nil {
-			log.Println(err)
-		}
-	}
+	fh.wsPool.Broadcast <- uuid.String()
 }

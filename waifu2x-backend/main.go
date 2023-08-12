@@ -9,7 +9,7 @@ import (
 	"strconv"
 
 	beanstalk "github.com/beanstalkd/go-beanstalk"
-	"github.com/gorilla/websocket"
+	"github.com/hiyorun/waifu2x-upscaler-web/pkg/websocket"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -17,7 +17,7 @@ type functionHelper struct {
 	db           *sql.DB
 	beanstalk    *beanstalk.Conn
 	sharedFolder string
-	webSocket    []*websocket.Conn
+	wsPool       *websocket.Pool
 }
 
 func main() {
@@ -28,6 +28,9 @@ func main() {
 	sharedFolder := flag.String("sharedFolder", "./", "Shared folder location")
 
 	flag.Parse()
+
+	pool := websocket.NewPool()
+	go pool.Start()
 
 	db, err := sql.Open("sqlite3", *dbfile)
 	if err != nil {
@@ -46,6 +49,7 @@ func main() {
 		db:           db,
 		beanstalk:    beanstalk,
 		sharedFolder: *sharedFolder,
+		wsPool:       pool,
 	}
 
 	endpoints := fh.Endpoints()
