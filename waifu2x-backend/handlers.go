@@ -250,30 +250,39 @@ func (fh *functionHelper) HandleWebSocket(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	fh.webSocket = conn
+	fh.webSocket = append(fh.webSocket, conn)
 
 	for {
-		messageType, message, err := fh.webSocket.ReadMessage()
+		messageType, message, err := conn.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway) {
 				log.Printf("Error reading message: %v", err)
 			}
-			return
+			break
 		}
 		fmt.Printf("Received message: %s\n", message)
 
-		err = fh.webSocket.WriteMessage(messageType, message)
-		if err != nil {
-			fmt.Println("Error writing message:", err)
-			break
+		activeClients := make([]*websocket.Conn, 0, len(fh.webSocket))
+
+		for _, client := range fh.webSocket {
+			if err := client.WriteMessage(messageType, message); err != nil {
+				fmt.Println("Error writing message:", err)
+			} else {
+				activeClients = append(activeClients, client)
+			}
 		}
+
+		fh.webSocket = activeClients
 	}
 }
 
 func (fh *functionHelper) triggerUpdate(uuid uuid.UUID) {
 	// Send a message to the connected WebSocket client
-	err := fh.webSocket.WriteMessage(websocket.TextMessage, []byte(uuid.String()))
-	if err != nil {
-		log.Println(err)
+	log.Println("Sending message", uuid)
+	for _, client := range fh.webSocket {
+		err := client.WriteMessage(websocket.TextMessage, []byte(uuid.String()))
+		if err != nil {
+			log.Println(err)
+		}
 	}
 }

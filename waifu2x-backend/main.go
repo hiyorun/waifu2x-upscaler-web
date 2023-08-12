@@ -17,7 +17,7 @@ type functionHelper struct {
 	db           *sql.DB
 	beanstalk    *beanstalk.Conn
 	sharedFolder string
-	webSocket    *websocket.Conn
+	webSocket    []*websocket.Conn
 }
 
 func main() {
@@ -54,7 +54,7 @@ func main() {
 		http.HandleFunc(endpoint.Pattern, endpoint.Handler)
 	}
 
-	defer fh.webSocket.Close()
+	// defer fh.webSocket.Close()
 
 	addr := ":" + strconv.Itoa(*port)
 	log.Printf("Server listening on %s", addr)
