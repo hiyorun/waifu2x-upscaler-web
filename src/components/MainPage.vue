@@ -1,15 +1,17 @@
 <script setup>
 import { reactive, ref, onMounted, onBeforeUnmount } from "vue";
+import { useWebSocket } from "@/composables/useWebSocket";
+import { useImageHelper } from "@/composables/useImageHelper";
+import { useBusy } from '@/states/busy.js';
 
-const socket = new WebSocket('wss://scalar.hiyo.run/api/v1/ws');
+const { socket, createWebSocket, handleConnection, handleDisconnection, handleError, sendHeartbeat } = useWebSocket();
+const { uploadImage, downloadImage, getImages, } = useImageHelper
 
+const busy = useBusy()
 const file = ref(null);
-const upscaled = ref(null);
-
 let session = reactive({ uuid: "" })
 let sIDExist = ref(false)
 let modify = ref(false)
-let loading = ref(false);
 let buttonLabel = ref("Upload a file");
 let images = reactive({ entries: [] })
 let model = reactive({
@@ -17,6 +19,7 @@ let model = reactive({
   noise: 1,
   imageFile: null,
 });
+const heartbeatInterval = setInterval(sendHeartbeat, 5000);
 
 onMounted(
   () => {
@@ -24,11 +27,11 @@ onMounted(
     if (session.uuid) {
       sIDExist.value = true
     }
-    socket.onopen = (event) => {
-      console.log('WebSocket connection opened', event);
-    };
-    getImages()
-    socket.onmessage = (event) => {
+
+    createWebSocket()
+
+    socket.value.onmessage = (event) => {
+      console.log(event)
       if (event.data === session.uuid) {
         getImages();
       }
@@ -37,52 +40,28 @@ onMounted(
 )
 
 onBeforeUnmount(() => {
-  socket.close();
+  clearInterval(heartbeatInterval);
+  if (socket.value) {
+    socket.value.removeEventListener('open', handleConnection);
+    socket.value.removeEventListener('close', handleDisconnection);
+    socket.value.removeEventListener('error', handleError);
+    socket.value.close();
+  }
 });
 
-async function downloadImage(filename) {
-  console.log("Downloading",filename)
-  const image = await fetch("https://scalar.hiyo.run/api/v1/download-image?" + new URLSearchParams({
-    filename: filename
-  }))
-  const imageBlog = await image.blob()
-  const imageURL = URL.createObjectURL(imageBlog)
-
-  const link = document.createElement('a')
-  link.href = imageURL
-  link.download = filename
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
+function generateUUID() {
+  session.uuid = ""
+  handleUUID()
 }
 
-async function getImages() {
-  const response = await fetch("https://scalar.hiyo.run/api/v1/get-images?" + new URLSearchParams({
-    uuid: session.uuid
-  }))
-  const jsonData = await response.json();
-  images.entries = jsonData
-}
-
-function generateID() {
-  session.uuid = crypto.randomUUID()
-  localStorage.setItem('session_id', session.uuid);
-  sIDExist.value = true
-  modify.value = false
-}
-
-function storeSessionID() {
+function handleUUID() {
   console.log(session.uuid)
   if (!session.uuid) {
-    return
+    session.uuid = crypto.randomUUID()
   }
   localStorage.setItem('session_id', session.uuid);
   sIDExist.value = true
   modify.value = false
-}
-
-function configureSessionID() {
-  modify.value = true
 }
 
 function cancelModify() {
@@ -95,33 +74,14 @@ function readFile() {
   buttonLabel.value = "Current = " + model.imageFile[0].name;
 }
 
-function submitUpscale() {
-  loading.value = true;
-  let form = new FormData();
-  form.append("imageFile", model.imageFile[0]);
-  form.append("scale", model.scale);
-  form.append("noise", model.noise);
-  form.append("uuid", session.uuid)
-  fetch("https://scalar.hiyo.run/api/v1/upload", {
-    method: "POST",
-    body: form,
-  })
+function upload() {
+  busy.setBusy(true)
+  uploadImage(model)
     .catch((err) => {
       console.error(err);
+      return err
     })
-    .finally(() => {
-      loading.value = false;
-    });
-}
-
-function download() {
-  // console.log(upscaled.value, fileName);
-  let linkSource = upscaled.value.src;
-  let downloadLink = document.createElement("a");
-  downloadLink.href = linkSource;
-  downloadLink.download = `[${model.scale * 100}%][${model.noise}x]${model.imageFile[0].name
-    }`;
-  downloadLink.click();
+    .finally(()=>busy.setBusy(false))
 }
 </script>
 <template>
@@ -130,9 +90,9 @@ function download() {
       <span>Input your existing session UUID or create a new one</span>
       <div>
         <input type="text" v-model="session.uuid" placeholder="Session ID">
-        <button class="button" @click="storeSessionID()">Save</button>
+        <button class="button" @click="handleUUID()">Save</button>
       </div>
-      <button class="button" @click="generateID()">Generate new session UUID</button>
+      <button class="button" @click="generateUUID()">Generate new session UUID</button>
     </div>
   </div>
   <div v-if="modify" class="dialogbackground">
@@ -140,40 +100,40 @@ function download() {
       <span>Modify or regenerate your session UUID</span>
       <div>
         <input type="text" v-model="session.uuid" placeholder="Session ID">
-        <button class="button" @click="storeSessionID()">Save</button>
+        <button class="button" @click="handleUUID()">Save</button>
       </div>
-      <button class="button" @click="generateID()">Generate new session UUID</button>
+      <button class="button" @click="generateUUID()">Generate new session UUID</button>
       <button class="button" @click="cancelModify()">Cancel</button>
     </div>
   </div>
   <div class="center">
     <span>Your session UUID is: "{{ session.uuid }}"</span>
     <div style="margin: 1em 0;">
-      <button @click="configureSessionID()" class="button">Configure</button>
+      <button @click="() => { modify = true }" class="button">Configure</button>
     </div>
-    <input type="file" ref="file" id="upload" @change="readFile()" :disabled="loading" />
-    <label :class="!loading ? 'button' : 'button-disabled'" for="upload">
+    <input type="file" ref="file" id="upload" @change="readFile()" :disabled="busy.isBusy" />
+    <label :class="!busy.isBusy ? 'button' : 'button-disabled'" for="upload">
       <span>{{ buttonLabel }}</span>
     </label>
     <span class="group">Scale</span>
     <div>
-      <input type="radio" v-model="model.scale" value="1" :disabled="loading" />1
-      <input type="radio" v-model="model.scale" value="2" :disabled="loading" />2
-      <input type="radio" v-model="model.scale" value="4" :disabled="loading" />4
-      <input type="radio" v-model="model.scale" value="8" :disabled="loading" />8
+      <input type="radio" v-model="model.scale" value="1" :disabled="busy.isBusy" />1
+      <input type="radio" v-model="model.scale" value="2" :disabled="busy.isBusy" />2
+      <input type="radio" v-model="model.scale" value="4" :disabled="busy.isBusy" />4
+      <input type="radio" v-model="model.scale" value="8" :disabled="busy.isBusy" />8
     </div>
     <span class="group">Noise Reduction</span>
     <div>
-      <input type="radio" v-model="model.noise" value="1" :disabled="loading" />1
-      <input type="radio" v-model="model.noise" value="2" :disabled="loading" />2
-      <input type="radio" v-model="model.noise" value="3" :disabled="loading" />3
+      <input type="radio" v-model="model.noise" value="1" :disabled="busy.isBusy" />1
+      <input type="radio" v-model="model.noise" value="2" :disabled="busy.isBusy" />2
+      <input type="radio" v-model="model.noise" value="3" :disabled="busy.isBusy" />3
     </div>
     <div class="group">
       <button style="display: flex; align-items: center; justify-content: center"
-        :class="!loading ? 'button' : 'button-disabled'" @click="submitUpscale">
-        <span v-if="loading"> Upscaling </span>
+        :class="!busy.isBusy ? 'button' : 'button-disabled'" @click="upload()">
+        <span v-if="busy.isBusy"> Uploading </span>
         <span v-else>Post</span>
-        <div v-if="loading" class="lds-ripple">
+        <div v-if="busy.isBusy" class="lds-ripple">
           <div></div>
           <div></div>
         </div>
