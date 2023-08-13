@@ -49,7 +49,7 @@ async function getImages() {
 
 </script>
 <template>
-  <div class="flex min-h-full flex-1 flex-col justify-center px-6 py-12 lg:px-8 bg-arisu-200 dark:bg-arisu-900 noisy">
+  <div class="flex flex-1 flex-col justify-center px-6 py-12 lg:px-8 bg-arisu-200 dark:bg-arisu-900 noisy min-h-screen min-w-screen">
     <p class="text-sm font-semibold text-arisu-900 dark:text-arisu-100">Click on the list to download</p>
     <ul role="list">
       <li v-for="entry in images.entries" :key="entry.uuid"

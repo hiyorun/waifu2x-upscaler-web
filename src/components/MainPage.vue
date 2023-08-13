@@ -47,7 +47,7 @@ function upload() {
 }
 </script>
 <template>
-  <div class="flex min-h-full flex-1 flex-col justify-center px-6 py-12 lg:px-8 ">
+  <div class="flex flex-1 flex-col justify-center px-6 py-12 lg:px-8 bg-arisu-200 dark:bg-arisu-900 noisy min-h-screen min-w-screen">
     <form>
       <div class="space-y-12">
         <h2 class="text-base font-semibold leading-7 text-arisu-900 dark:text-arisu-100">Image to process</h2>

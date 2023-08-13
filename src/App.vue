@@ -11,7 +11,7 @@ function changePage(route) {
 </script>
 
 <template>
-  <Menu as="div" class="absolute top-4 right-4">
+  <Menu as="div" class="fixed top-4 right-4">
     <div>
       <MenuButton
         class="relative flex rounded-full bg-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-gray-800">
