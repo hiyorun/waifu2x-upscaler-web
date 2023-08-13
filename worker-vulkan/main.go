@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"sync"
 	"time"
 
 	beanstalk "github.com/beanstalkd/go-beanstalk"
@@ -52,10 +53,31 @@ func main() {
 
 	log.Println("Ready to take jobs")
 
-	go wh.worker(conn)
+	wh.worker(conn)
 
 	// Wait indefinitely
 	select {}
+}
+
+func (wh *workerHelper) touchBeanstalkJob(stopCh <-chan struct{}, wg *sync.WaitGroup, conn *beanstalk.Conn, jobID uint64) {
+	defer wg.Done()
+
+	ticker := time.NewTicker(10 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			// Use the Touch function to reset the job's TTR (time-to-run)
+			if err := conn.Touch(jobID); err != nil {
+				fmt.Println("Error touching job:", err)
+			}
+			fmt.Println("Job is taking longer than usual, letting Beanstalk know")
+		case <-stopCh:
+			fmt.Println("touchBeanstalkJob() is stopping...")
+			return
+		}
+	}
 }
 
 func (wh *workerHelper) worker(conn *beanstalk.Conn) {
@@ -73,10 +95,26 @@ func (wh *workerHelper) worker(conn *beanstalk.Conn) {
 		}
 
 		fmt.Printf("Processing %s scale %dx, and noise %d for session %s\n", task.FileName, task.Scale, task.Noise, task.UUID)
+		// Create a channel to stop the touchBeanstalkJob goroutine when needed
+		stopLetThemKnow := make(chan struct{})
+		var wg sync.WaitGroup
+
+		// Start the touchBeanstalkJob goroutine
+		wg.Add(1)
+		go wh.touchBeanstalkJob(stopLetThemKnow, &wg, conn, id)
+
+		// Perform the upscale operation
 		wh.sendStatus(task.UUID, task.FileName, "processing")
 		err = wh.startUpscale(task.FileName, task.Noise, task.Scale)
+
+		// Stop the touchBeanstalkJob goroutine
+		close(stopLetThemKnow)
+		wg.Wait() // Wait for the goroutine to finish
+
+		// Handle the result of the upscale operation
 		if err != nil {
-			wh.sendStatus(task.UUID, task.FileName, "failed")
+			wh.sendStatus(task.UUID, task.FileName, "failed, retrying")
+			conn.Release(id, 1, 3*time.Second)
 			continue
 		}
 		log.Println("Done")
@@ -118,7 +156,19 @@ func (wh *workerHelper) startUpscale(filename string, noise, scale int) error {
 	cmd.Stderr = mw
 
 	if err := cmd.Run(); err != nil {
-		log.Println(err)
+		return err
+	}
+
+	if err := fileExists(fmt.Sprint(wh.sharedFolder, "/upscaled-images/", filename)); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func fileExists(filename string) error {
+	_, err := os.Stat(filename)
+	if os.IsNotExist(err) {
 		return err
 	}
 	return nil
