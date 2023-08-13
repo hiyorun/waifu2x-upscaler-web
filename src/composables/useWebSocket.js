@@ -1,4 +1,5 @@
 import { ref } from "vue";
+import { useApiUrl } from "./useAPI";
 
 export function useWebSocket() {
   const socket = ref(null);
@@ -21,7 +22,7 @@ export function useWebSocket() {
   }
 
   function createWebSocket(callback) {
-    socket.value = new WebSocket("wss://scalar.hiyo.run/api/v1/ws");
+    socket.value = new WebSocket(useApiUrl('/ws',true));
     socket.value.addEventListener("open", handleConnection);
     socket.value.addEventListener("close", handleDisconnection);
     socket.value.addEventListener("error", handleError);

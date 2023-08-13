@@ -1,3 +1,5 @@
+import { useApiUrl } from "./useAPI";
+
 export function useImageHelper() {
   function uploadImage(model) {
     let form = new FormData();
@@ -5,20 +7,20 @@ export function useImageHelper() {
     form.append("scale", model.scale);
     form.append("noise", model.noise);
     form.append("uuid", model.uuid);
-    return fetch("https://scalar.hiyo.run/api/v1/upload", {
+    return fetch(useApiUrl("/upload"), {
       method: "POST",
       body: form,
-    })
+    });
   }
 
-  async function downloadImage(filename,status) {
-    console.log(filename,status)
-    if(status !== "done"){
-      return
+  async function downloadImage(filename, status) {
+    console.log(filename, status);
+    if (status !== "done") {
+      return;
     }
     console.log("Downloading", filename);
     const image = await fetch(
-      "https://scalar.hiyo.run/api/v1/download-image?" +
+      useApiUrl("/download-image?") +
         new URLSearchParams({
           filename: filename,
         })

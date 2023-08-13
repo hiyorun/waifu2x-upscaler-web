@@ -3,6 +3,7 @@ import { reactive, ref, onMounted, onBeforeUnmount } from "vue";
 import { useWebSocket } from "@/composables/useWebSocket";
 import { useSession } from "@/states/sessionid";
 import { useImageHelper } from "@/composables/useImageHelper";
+import { useApiUrl } from '../composables/useAPI';
 
 const { socket, createWebSocket, handleConnection, handleDisconnection, handleError, sendHeartbeat } = useWebSocket();
 const { downloadImage } = useImageHelper()
@@ -37,8 +38,7 @@ onBeforeUnmount(() => {
 });
 
 async function getImages() {
-  const response = await fetch(
-    "https://scalar.hiyo.run/api/v1/get-images?" +
+  const response = await fetch(useApiUrl('/get-images?') +
     new URLSearchParams({
       uuid: sessionStore.getSession,
     })
@@ -52,7 +52,9 @@ async function getImages() {
   <div class="flex min-h-full flex-1 flex-col justify-center px-6 py-12 lg:px-8 bg-arisu-200 dark:bg-arisu-900 noisy">
     <p class="text-sm font-semibold text-arisu-900 dark:text-arisu-100">Click on the list to download</p>
     <ul role="list">
-      <li v-for="entry in images.entries" :key="entry.uuid" class="rounded-full flex justify-between gap-x-6 py-5 my-2 px-5 hover:bg-arisu-300 dark:hover:bg-arisu-700" @click="downloadImage(entry.filename,entry.status)" >
+      <li v-for="entry in images.entries" :key="entry.uuid"
+        class="rounded-full flex justify-between gap-x-6 py-5 my-2 px-5 hover:bg-arisu-300 dark:hover:bg-arisu-700"
+        @click="downloadImage(entry.filename, entry.status)">
         <div class="flex min-w-0 gap-x-4">
           <!-- <img class="h-12 w-12 flex-none rounded-full bg-arisu-50" :src="entry.imageUrl" alt="" /> -->
           <div class="min-w-0 flex-auto">

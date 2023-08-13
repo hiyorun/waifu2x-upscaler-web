@@ -15,7 +15,6 @@ onMounted(() => {
 
 function generateUUID() {
   sessionStore.setSession(crypto.randomUUID())
-  console.log("Generate UUID")
   if (sessionStore.getSession !== "") {
     router.push('/')
   }

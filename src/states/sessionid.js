@@ -13,6 +13,7 @@ export const useSession = defineStore("sessionId", {
   actions: {
     setSession(session) {
       this.session = session;
+      localStorage.setItem('session_id', session);
     },
   },
 });
