@@ -6,7 +6,10 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
 	"strconv"
+	"syscall"
 
 	beanstalk "github.com/beanstalkd/go-beanstalk"
 	"github.com/hiyorun/waifu2x-upscaler-web/pkg/websocket"
@@ -18,6 +21,7 @@ type functionHelper struct {
 	beanstalk    *beanstalk.Conn
 	sharedFolder string
 	wsPool       *websocket.Pool
+	httpServer   *http.Server
 }
 
 func main() {
@@ -45,11 +49,18 @@ func main() {
 	}
 	defer beanstalk.Close()
 
+	addr := ":" + strconv.Itoa(*port)
+	server := &http.Server{
+		Addr:    addr,
+		Handler: nil, // We're using http.DefaultServeMux
+	}
+
 	fh := &functionHelper{
 		db:           db,
 		beanstalk:    beanstalk,
 		sharedFolder: *sharedFolder,
 		wsPool:       pool,
+		httpServer:   server,
 	}
 
 	endpoints := fh.Endpoints()
@@ -58,9 +69,22 @@ func main() {
 		http.HandleFunc(endpoint.Pattern, endpoint.Handler)
 	}
 
-	// defer fh.webSocket.Close()
+	go func() {
+		log.Printf("Server listening on %s", addr)
+		fmt.Println(server.ListenAndServe())
+	}()
 
-	addr := ":" + strconv.Itoa(*port)
-	log.Printf("Server listening on %s", addr)
-	fmt.Println(http.ListenAndServe(addr, nil))
+	// Capture interrupt signals (Ctrl+C) and perform cleanup
+	signalChannel := make(chan os.Signal, 2)
+	signal.Notify(signalChannel, os.Interrupt, syscall.SIGTERM)
+	for {
+		sig := <-signalChannel
+		switch sig {
+		case os.Interrupt:
+			fh.exitGracefully()
+		case syscall.SIGTERM:
+			fh.exitGracefully()
+			return
+		}
+	}
 }

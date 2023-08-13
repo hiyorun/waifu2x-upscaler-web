@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -255,4 +256,24 @@ func (fh *functionHelper) HandleWebSocket(w http.ResponseWriter, r *http.Request
 
 func (fh *functionHelper) triggerUpdate(uuid uuid.UUID) {
 	fh.wsPool.Broadcast <- uuid.String()
+}
+
+func (fh *functionHelper) exitGracefully() {
+	log.Println("Received interrupt signal. Performing cleanup...")
+	// Properly close the WebSocket pool
+	// pool.Close()
+	// Properly close the database connection
+	if err := fh.db.Close(); err != nil {
+		log.Printf("Error closing the database connection: %v", err)
+	}
+	// Properly close http server
+	if err := fh.httpServer.Shutdown(context.Background()); err != nil {
+		log.Printf("Error closing the Beanstalk connection: %v", err)
+	}
+	// Properly close the Beanstalk connection
+	if err := fh.beanstalk.Close(); err != nil {
+		log.Printf("Error closing the Beanstalk connection: %v", err)
+	}
+	log.Println("Cleanup completed. Exiting...")
+	os.Exit(0)
 }
