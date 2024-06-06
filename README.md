@@ -1,35 +1,49 @@
 # waifu2x-web
 
-This template should help get you started developing with Vue 3 in Vite.
+A worker based upscaler utilizing waifu2x.
 
-## Recommended IDE Setup
+## Workers
+You need to install Beanstalkd v1.12 as the message brokers for the workers, and set up shared folder for the worker to process the images.
 
-[VSCode](https://code.visualstudio.com/) + [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur) + [TypeScript Vue Plugin (Volar)](https://marketplace.visualstudio.com/items?itemName=Vue.vscode-typescript-vue-plugin).
-
-## Customize configuration
-
-See [Vite Configuration Reference](https://vitejs.dev/config/).
-
-## Project Setup
-
-```sh
-npm install
+I'm gonna use Arch Linux as the example here.
+1. Clone this repo
+```
+git clone https://github.com/hiyorun/waifu2x-upscaler-web
 ```
 
-### Compile and Hot-Reload for Development
+2. Compile
 
-```sh
-npm run dev
+worker-vulkan and waifu2x-ncnn-vulkan:
+```
+pacman -S waifu2x-ncnn-vulkan
+cd waifu2x-upscaler-web
+cd worker-vulkan
+go build
 ```
 
-### Compile and Minify for Production
-
-```sh
-npm run build
+or worker-cpp and waifu2x-converter-cpp:
+```
+yay -S waifu2x-converter-cpp
+cd waifu2x-upscaler-web
+cd worker-cpp
+go build
 ```
 
-### Lint with [ESLint](https://eslint.org/)
+Note: You can install both on the same machine. Deploy them to your instance(s). Use `--help` for connection details to beanstalkd and main backend
 
-```sh
-npm run lint
+## Backend
 ```
+cd waifu2x-upscaler-web
+go build
+```
+
+Deploy it to the central instance that saves the processed images to an SQLite DB (See `--help`)
+
+## Frontend
+```
+cd waifu2x-upscaler-web
+yarn
+yarn build
+```
+
+Currently the frontend will use current domain or localhost. No configuration is possible currently unless you edit the useAPI composables. Sorry!
